@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eci-platform
+  labels:
+    name: eci-platform
+    environment: production
