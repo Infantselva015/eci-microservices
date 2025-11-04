@@ -31,8 +31,8 @@ This integration repository provides:
 | Product Service | 8082 | 5432 | Product catalog | [Name] |
 | Inventory Service | 8083 | 5435 | Stock management | [Name] |
 | User Service | 8084 | 5436 | User management | [Name] |
-| Shipping Service | 8085 | 5433 | Shipment tracking | [Your Name] |
-| Payment Service | 8086 | 5434 | Payment processing | [Your Name] |
+| Shipping Service | 8085 | 5433 | Shipment tracking | Infantselva S |
+| Payment Service | 8086 | 5434 | Payment processing | Infantselva S |
 
 ---
 
@@ -42,7 +42,7 @@ This integration repository provides:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     API Gateway (Future)                     │
+│                     API Gateway                             │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
@@ -474,8 +474,8 @@ Based on course learnings, potential improvements:
 - Product Service: [Team Member 2]
 - Inventory Service: [Team Member 3]
 - User Service: [Team Member 4]
-- Shipping Service: [Your Name]
-- Payment Service: [Your Name]
+- Shipping Service: [Infantselva S]
+- Payment Service: [Infantselva S]
 - Integration & Testing: [All Team Members]
 
 ---
