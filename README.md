@@ -38,9 +38,137 @@ This integration repository provides:
 | Product Service | 8082 | 5432 | Product catalog | [Name] |
 | Inventory Service | 8083 | 5435 | Stock management | [Name] |
 | User Service | 8084 | 5436 | User management | [Name] |
+| Shipping Service | 8085 | 5433 | Shipment tracking | Infantselva S |
+| Payment Service | 8086 | 5434 | Payment processing | Infantselva S |
 
 ---
 
+## 2. Architecture
+
+### 2.1 System Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     API Gateway                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   ┌────▼────┐          ┌─────▼─────┐        ┌─────▼─────┐
+   │  Order  │          │  Product  │        │   User    │
+   │ Service │          │  Service  │        │  Service  │
+   └────┬────┘          └───────────┘        └───────────┘
+        │
+        ├──────────┬──────────┬──────────┬──────────┐
+        │          │          │          │          │
+   ┌────▼────┐ ┌──▼──────┐ ┌─▼────────┐ ┌─▼─────┐ ┌─▼──────────┐
+   │Inventory│ │ Payment │ │ Shipping │ │Notif. │ │ Analytics  │
+   │ Service │ │ Service │ │ Service  │ │Service│ │  Service   │
+   └─────────┘ └─────────┘ └──────────┘ └───────┘ └────────────┘
+```
+
+### 2.2 Service Communication Patterns
+
+**Synchronous Communication (REST API)**:
+- Order → Inventory (stock check)
+- Order → Payment (payment processing)
+- Order → Shipping (shipment creation)
+
+**Asynchronous Communication (Event-driven)**:
+- All services → Notification Service
+- Order Service → Analytics Service (future)
+
+### 2.3 Database Architecture
+Following the **database-per-service** pattern:
+- Each service maintains its own PostgreSQL database
+- No direct database access between services
+- Data consistency via API contracts
+
+---
+
+## 3. Docker Compose Configuration
+
+### 3.1 Network Configuration
+```yaml
+networks:
+  eci-network:
+    driver: bridge
+```
+
+All services communicate through a shared bridge network named `eci-network`.
+
+### 3.2 Service Dependencies
+Services are configured with proper startup order:
+```yaml
+depends_on:
+  - order-postgres
+  - inventory-service
+  - payment-service
+  - shipping-service
+```
+
+### 3.3 Health Checks
+Every service includes health check configuration:
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+```
+
+---
+
+## 4. Deployment Instructions
+
+### 4.1 Prerequisites
+As reviewed by the professor, ensure the following are installed:
+- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+- Docker Compose v2.0+
+- Git
+- PowerShell (Windows) or Bash (Linux/Mac)
+
+### 4.2 Repository Structure Setup
+
+**Step 1**: Clone all service repositories in the same parent directory:
+
+```bash
+# Create project directory
+mkdir eci-platform
+cd eci-platform
+
+# Clone all service repositories
+git clone https://github.com/Infantselva015/eci-order-service.git
+git clone https://github.com/Infantselva015/eci-product-service.git
+git clone https://github.com/Infantselva015/eci-inventory-service.git
+git clone https://github.com/Infantselva015/eci-user-service.git
+git clone https://github.com/Infantselva015/eci-shipping-service.git
+git clone https://github.com/Infantselva015/eci-payment-service.git
+git clone https://github.com/Infantselva015/eci-platform-integration.git
+```
+
+**Expected Directory Structure**:
+```
+eci-platform/
+├── eci-order-service/
+├── eci-product-service/
+├── eci-inventory-service/
+├── eci-user-service/
+├── eci-shipping-service/
+├── eci-payment-service/
+└── eci-platform-integration/  ← You are here
+```
+
+### 4.3 Deployment Steps
+
+**Step 2**: Navigate to integration repository:
+```bash
+cd eci-platform-integration
+```
+
+**Step 3**: Start all services:
+```bash
 ## 2. Quick Start Guide
 
 ### 2.1 Prerequisites
@@ -375,8 +503,8 @@ Based on course learnings, potential improvements:
 - Product Service: [Team Member 2]
 - Inventory Service: [Team Member 3]
 - User Service: [Team Member 4]
-- Shipping Service: [Your Name]
-- Payment Service: [Your Name]
+- Shipping Service: [Infantselva S]
+- Payment Service: [Infantselva S]
 - Integration & Testing: [All Team Members]
 
 ---
