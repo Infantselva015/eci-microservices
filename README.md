@@ -4,13 +4,14 @@
 **Course**: Scalable Services  
 **Assignment**: Microservices Architecture Implementation  
 **Submission Date**: November 10, 2025  
-**Group**: [Your Group Number]
+**Group**: [Your Group Number]  
+**Last Updated**: November 6, 2025
 
 ---
 
 ## Executive Summary
 
-This repository serves as the integration layer for the E-Commerce with Inventory (ECI) microservices platform. It demonstrates how six independent microservices are orchestrated to work together as a cohesive system, fulfilling the assignment's requirement for distributed system integration.
+This repository serves as the integration layer for the E-Commerce with Inventory (ECI) microservices platform. Currently, it integrates **3 microservices** (Order, Payment, and Shipping) working together as a cohesive system, demonstrating distributed system integration principles.
 
 ---
 
@@ -18,176 +19,76 @@ This repository serves as the integration layer for the E-Commerce with Inventor
 
 ### 1.1 Purpose
 This integration repository provides:
-1. **Unified Orchestration**: Docker Compose configuration for all 6 microservices
+1. **Unified Orchestration**: Docker Compose configuration for 3 microservices
 2. **End-to-End Testing**: Complete workflow validation scripts
-3. **Deployment Documentation**: Step-by-step deployment guides
-4. **Health Monitoring**: Automated health check scripts
+3. **Health Monitoring**: Automated health check scripts
+4. **Integration Documentation**: Service communication patterns and API contracts
 
-### 1.2 Microservices Integrated
+### 1.2 Currently Integrated Services
 
+| Service | Port | Database | DB Port | Technology | Status |
+|---------|------|----------|---------|------------|--------|
+| Order Service | 8081 | MySQL 8.0 | 3307 | FastAPI + SQLAlchemy | ✅ Ready |
+| Payment Service | 8086 | PostgreSQL 14 | 5434 | FastAPI + SQLAlchemy | ✅ Ready |
+| Shipping Service | 8085 | PostgreSQL 14 | 5433 | FastAPI + SQLAlchemy | ✅ Ready |
+
+### 1.3 Future Services (To Be Added)
 | Service | Port | Database Port | Responsibility | Team Member |
 |---------|------|---------------|----------------|-------------|
-| Order Service | 8081 | 5431 | Order management | [Name] |
 | Product Service | 8082 | 5432 | Product catalog | [Name] |
 | Inventory Service | 8083 | 5435 | Stock management | [Name] |
 | User Service | 8084 | 5436 | User management | [Name] |
-| Shipping Service | 8085 | 5433 | Shipment tracking | [Your Name] |
-| Payment Service | 8086 | 5434 | Payment processing | [Your Name] |
 
 ---
 
-## 2. Architecture
+## 2. Quick Start Guide
 
-### 2.1 System Architecture Diagram
+### 2.1 Prerequisites
+```powershell
+# Ensure Docker is running
+docker --version
+docker-compose --version
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     API Gateway (Future)                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-   ┌────▼────┐          ┌─────▼─────┐        ┌─────▼─────┐
-   │  Order  │          │  Product  │        │   User    │
-   │ Service │          │  Service  │        │  Service  │
-   └────┬────┘          └───────────┘        └───────────┘
-        │
-        ├──────────┬──────────┬──────────┬──────────┐
-        │          │          │          │          │
-   ┌────▼────┐ ┌──▼──────┐ ┌─▼────────┐ ┌─▼─────┐ ┌─▼──────────┐
-   │Inventory│ │ Payment │ │ Shipping │ │Notif. │ │ Analytics  │
-   │ Service │ │ Service │ │ Service  │ │Service│ │  Service   │
-   └─────────┘ └─────────┘ └──────────┘ └───────┘ └────────────┘
+# You should have these service repositories in the parent directory:
+# - eci-order-service/
+# - eci-payment-service/
+# - eci-shipping-service/
+# - eci-microservices/ (this repo)
 ```
 
-### 2.2 Service Communication Patterns
+### 2.2 Start All Services
+```powershell
+# Navigate to integration repository
+cd eci-microservices
 
-**Synchronous Communication (REST API)**:
-- Order → Inventory (stock check)
-- Order → Payment (payment processing)
-- Order → Shipping (shipment creation)
-
-**Asynchronous Communication (Event-driven)**:
-- All services → Notification Service
-- Order Service → Analytics Service (future)
-
-### 2.3 Database Architecture
-Following the **database-per-service** pattern:
-- Each service maintains its own PostgreSQL database
-- No direct database access between services
-- Data consistency via API contracts
-
----
-
-## 3. Docker Compose Configuration
-
-### 3.1 Network Configuration
-```yaml
-networks:
-  eci-network:
-    driver: bridge
-```
-
-All services communicate through a shared bridge network named `eci-network`.
-
-### 3.2 Service Dependencies
-Services are configured with proper startup order:
-```yaml
-depends_on:
-  - order-postgres
-  - inventory-service
-  - payment-service
-  - shipping-service
-```
-
-### 3.3 Health Checks
-Every service includes health check configuration:
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 40s
-```
-
----
-
-## 4. Deployment Instructions
-
-### 4.1 Prerequisites
-As reviewed by the professor, ensure the following are installed:
-- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
-- Docker Compose v2.0+
-- Git
-- PowerShell (Windows) or Bash (Linux/Mac)
-
-### 4.2 Repository Structure Setup
-
-**Step 1**: Clone all service repositories in the same parent directory:
-
-```bash
-# Create project directory
-mkdir eci-platform
-cd eci-platform
-
-# Clone all service repositories
-git clone https://github.com/Infantselva015/eci-order-service.git
-git clone https://github.com/Infantselva015/eci-product-service.git
-git clone https://github.com/Infantselva015/eci-inventory-service.git
-git clone https://github.com/Infantselva015/eci-user-service.git
-git clone https://github.com/Infantselva015/eci-shipping-service.git
-git clone https://github.com/Infantselva015/eci-payment-service.git
-git clone https://github.com/Infantselva015/eci-platform-integration.git
-```
-
-**Expected Directory Structure**:
-```
-eci-platform/
-├── eci-order-service/
-├── eci-product-service/
-├── eci-inventory-service/
-├── eci-user-service/
-├── eci-shipping-service/
-├── eci-payment-service/
-└── eci-platform-integration/  ← You are here
-```
-
-### 4.3 Deployment Steps
-
-**Step 2**: Navigate to integration repository:
-```bash
-cd eci-platform-integration
-```
-
-**Step 3**: Start all services:
-```bash
+# Start all 3 services with their databases
 docker-compose up -d
-```
 
-**Step 4**: Verify all services are running:
-```bash
+# Check status
 docker-compose ps
 ```
 
 Expected output:
 ```
-NAME                    STATUS              PORTS
-order-service           Up (healthy)        0.0.0.0:8081->8000/tcp
-product-service         Up (healthy)        0.0.0.0:8082->8000/tcp
-inventory-service       Up (healthy)        0.0.0.0:8083->8000/tcp
-user-service            Up (healthy)        0.0.0.0:8084->8000/tcp
-shipping-service        Up (healthy)        0.0.0.0:8085->8000/tcp
-payment-service         Up (healthy)        0.0.0.0:8086->8000/tcp
+NAME                STATUS              PORTS
+order-mysql         Up (healthy)        0.0.0.0:3307->3306/tcp
+order-service       Up (healthy)        0.0.0.0:8081->8000/tcp
+payment-postgres    Up (healthy)        0.0.0.0:5434->5432/tcp
+payment-service     Up (healthy)        0.0.0.0:8086->8006/tcp
+shipping-postgres   Up (healthy)        0.0.0.0:5433->5432/tcp
+shipping-service    Up (healthy)        0.0.0.0:8085->8005/tcp
 ```
 
-**Step 5**: Run health checks:
+### 2.3 Verify Health
 ```powershell
-# Windows PowerShell
-.\scripts\health-check-all.ps1
+# Run health check script
+.\scripts\health-check.ps1
+```
 
-# Linux/Mac
-./scripts/health-check-all.sh
+### 2.4 Run End-to-End Test
+```powershell
+# Test complete order-to-delivery workflow
+.\tests\test-e2e-3-services.ps1
 ```
 
 ---
