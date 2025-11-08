@@ -1,8 +1,9 @@
 version: '3.8'
 
-# ECI Platform - 3 Services Integration
-# Order Service (MySQL) + Payment Service (PostgreSQL) + Shipping Service (PostgreSQL)
-# Updated: November 6, 2025
+# ECI Platform - 5 Services Integration
+# Catalog Service (Node.js/MySQL) + Inventory Service (Node.js/MySQL) + Order Service (Python/MySQL)
+# Payment Service (Python/PostgreSQL) + Shipping Service (Python/PostgreSQL)
+# Updated: November 8, 2025
 
 networks:
   eci-network:
@@ -10,12 +11,116 @@ networks:
     name: eci-network
 
 volumes:
+  catalog-mysql-data:
+  inventory-mysql-data:
   order-mysql-data:
-  shipping-postgres-data:
   payment-postgres-data:
+  shipping-postgres-data:
 
 services:
-  # ==================== ORDER SERVICE (MySQL) ====================
+  # ==================== CATALOG SERVICE (Node.js/MySQL) ====================
+  catalog-mysql:
+    image: mysql:8.4
+    container_name: catalog-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: catalog_db
+    volumes:
+      - catalog-mysql-data:/var/lib/mysql
+      - ./eci-catalog-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - eci-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ptoor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  catalog-service:
+    build:
+      context: ./eci-catalog-service
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    ports:
+      - "8090:8080"
+    environment:
+      PORT: 8080
+      API_VERSION: v1
+      DB_HOST: catalog-mysql
+      DB_PORT: 3306
+      DB_NAME: catalog_db
+      DB_USER: root
+      DB_PASSWORD: toor
+      NODE_ENV: production
+    depends_on:
+      catalog-mysql:
+        condition: service_healthy
+    networks:
+      - eci-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # ==================== INVENTORY SERVICE (Node.js/MySQL) ====================
+  inventory-mysql:
+    image: mysql:8.0
+    container_name: inventory-mysql
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: inventory_db
+    volumes:
+      - inventory-mysql-data:/var/lib/mysql
+      - ./eci-inventory-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - eci-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ptoor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    build:
+      context: ./eci-inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      API_VERSION: v1
+      DB_HOST: inventory-mysql
+      DB_PORT: 3306
+      DB_NAME: inventory_db
+      DB_USER: root
+      DB_PASSWORD: toor
+      NODE_ENV: production
+      RESERVATION_TTL_MINUTES: 15
+      CATALOG_SERVICE_URL: http://catalog-service:8080
+    depends_on:
+      inventory-mysql:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+    networks:
+      - eci-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # ==================== ORDER SERVICE (Python/MySQL) ====================
   order-mysql:
     image: mysql:8.0
     container_name: order-mysql
@@ -38,11 +143,11 @@ services:
 
   order-service:
     build:
-      context: ../eci-order-service
+      context: ./eci-order-service
       dockerfile: Dockerfile
     container_name: order-service
     ports:
-      - "8081:8000"
+      - "8082:8000"
     environment:
       MYSQL_HOST: order-mysql
       MYSQL_PORT: 3306
@@ -51,12 +156,16 @@ services:
       MYSQL_PASSWORD: orders_pass
       SERVICE_PORT: 8000
       # Service URLs
-      PAYMENT_SERVICE_URL: http://payment-service:8000
-      SHIPPING_SERVICE_URL: http://shipping-service:8000
-      INVENTORY_SERVICE_URL: http://inventory-service:8000
-      CATALOG_SERVICE_URL: http://catalog-service:8000
+      PAYMENT_URL: http://payment-service:8006
+      SHIPPING_URL: http://shipping-service:8005
+      INVENTORY_URL: http://inventory-service:8081
+      CATALOG_URL: http://catalog-service:8080
     depends_on:
       order-mysql:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
         condition: service_healthy
     networks:
       - eci-network
@@ -68,7 +177,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ==================== PAYMENT SERVICE (PostgreSQL) ====================
+  # ==================== PAYMENT SERVICE (Python/PostgreSQL) ====================
   payment-postgres:
     image: postgres:14-alpine
     container_name: payment-postgres
@@ -80,7 +189,7 @@ services:
       POSTGRES_DB: payment_db
     volumes:
       - payment-postgres-data:/var/lib/postgresql/data
-      - ../eci-payment-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./eci-payment-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:
@@ -91,7 +200,7 @@ services:
 
   payment-service:
     build:
-      context: ../eci-payment-service
+      context: ./eci-payment-service
       dockerfile: Dockerfile
     container_name: payment-service
     ports:
@@ -103,7 +212,7 @@ services:
       SERVICE_PORT: 8006
       # Service URLs
       ORDER_SERVICE_URL: http://order-service:8000
-      INVENTORY_SERVICE_URL: http://inventory-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
       NOTIFICATION_SERVICE_URL: http://notification-service:8000
     depends_on:
       payment-postgres:
@@ -120,7 +229,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ==================== SHIPPING SERVICE (PostgreSQL) ====================
+  # ==================== SHIPPING SERVICE (Python/PostgreSQL) ====================
   shipping-postgres:
     image: postgres:14-alpine
     container_name: shipping-postgres
@@ -132,7 +241,7 @@ services:
       POSTGRES_DB: shipping_db
     volumes:
       - shipping-postgres-data:/var/lib/postgresql/data
-      - ../eci-shipping-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./eci-shipping-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:
@@ -143,7 +252,7 @@ services:
 
   shipping-service:
     build:
-      context: ../eci-shipping-service
+      context: ./eci-shipping-service
       dockerfile: Dockerfile
     container_name: shipping-service
     ports:
@@ -155,7 +264,7 @@ services:
       SERVICE_PORT: 8005
       # Service URLs
       ORDER_SERVICE_URL: http://order-service:8000
-      INVENTORY_SERVICE_URL: http://inventory-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8081
       NOTIFICATION_SERVICE_URL: http://notification-service:8000
     depends_on:
       shipping-postgres:
@@ -171,4 +280,3 @@ services:
       retries: 3
       start_period: 40s
     restart: unless-stopped
-

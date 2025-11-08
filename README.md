@@ -4,14 +4,13 @@
 **Course**: Scalable Services  
 **Assignment**: Microservices Architecture Implementation  
 **Submission Date**: November 10, 2025  
-**Group**: [Your Group Number]  
-**Last Updated**: November 6, 2025
+**Last Updated**: November 8, 2025
 
 ---
 
 ## Executive Summary
 
-This repository serves as the integration layer for the E-Commerce with Inventory (ECI) microservices platform. Currently, it integrates **3 microservices** (Order, Payment, and Shipping) working together as a cohesive system, demonstrating distributed system integration principles.
+This repository serves as the integration layer for the E-Commerce with Inventory (ECI) microservices platform. It integrates **5 microservices** (Catalog, Inventory, Order, Payment, and Shipping) working together as a cohesive system, demonstrating distributed system integration principles.
 
 ---
 
@@ -19,7 +18,7 @@ This repository serves as the integration layer for the E-Commerce with Inventor
 
 ### 1.1 Purpose
 This integration repository provides:
-1. **Unified Orchestration**: Docker Compose configuration for 3 microservices
+1. **Unified Orchestration**: Docker Compose configuration for 5 microservices
 2. **End-to-End Testing**: Complete workflow validation scripts
 3. **Health Monitoring**: Automated health check scripts
 4. **Integration Documentation**: Service communication patterns and API contracts
@@ -28,18 +27,11 @@ This integration repository provides:
 
 | Service | Port | Database | DB Port | Technology | Status |
 |---------|------|----------|---------|------------|--------|
-| Order Service | 8081 | MySQL 8.0 | 3307 | FastAPI + SQLAlchemy | ✅ Ready |
+| Catalog Service | 8090 | MySQL 8.4 | 3306 | Node.js + Express | ✅ Ready |
+| Inventory Service | 8091 | MySQL 8.0 | 3308 | Node.js + Express | ✅ Ready |
+| Order Service | 8082 | MySQL 8.0 | 3307 | FastAPI + SQLAlchemy | ✅ Ready |
 | Payment Service | 8086 | PostgreSQL 14 | 5434 | FastAPI + SQLAlchemy | ✅ Ready |
 | Shipping Service | 8085 | PostgreSQL 14 | 5433 | FastAPI + SQLAlchemy | ✅ Ready |
-
-### 1.3 Future Services (To Be Added)
-| Service | Port | Database Port | Responsibility | Team Member |
-|---------|------|---------------|----------------|-------------|
-| Product Service | 8082 | 5432 | Product catalog | [Name] |
-| Inventory Service | 8083 | 5435 | Stock management | [Name] |
-| User Service | 8084 | 5436 | User management | [Name] |
-| Shipping Service | 8085 | 5433 | Shipment tracking | Infantselva S |
-| Payment Service | 8086 | 5434 | Payment processing | Infantselva S |
 
 ---
 
@@ -49,28 +41,32 @@ This integration repository provides:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     API Gateway                             │
+│                   Client Applications                        │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
    ┌────▼────┐          ┌─────▼─────┐        ┌─────▼─────┐
-   │  Order  │          │  Product  │        │   User    │
-   │ Service │          │  Service  │        │  Service  │
-   └────┬────┘          └───────────┘        └───────────┘
-        │
-        ├──────────┬──────────┬──────────┬──────────┐
-        │          │          │          │          │
-   ┌────▼────┐ ┌──▼──────┐ ┌─▼────────┐ ┌─▼─────┐ ┌─▼──────────┐
-   │Inventory│ │ Payment │ │ Shipping │ │Notif. │ │ Analytics  │
-   │ Service │ │ Service │ │ Service  │ │Service│ │  Service   │
-   └─────────┘ └─────────┘ └──────────┘ └───────┘ └────────────┘
+   │ Catalog │          │ Inventory │        │   Order   │
+   │ Service │◄─────────┤  Service  │◄───────┤  Service  │
+   │ (Node)  │          │  (Node)   │        │  (Python) │
+   └─────────┘          └───────────┘        └─────┬─────┘
+                                                    │
+                                    ┌───────────────┼───────────────┐
+                                    │               │               │
+                               ┌────▼────┐    ┌────▼────┐    ┌─────▼─────┐
+                               │ Payment │    │Shipping │    │ Notif.    │
+                               │ Service │    │ Service │    │ Service   │
+                               │(Python) │    │(Python) │    │(Future)   │
+                               └─────────┘    └─────────┘    └───────────┘
 ```
 
 ### 2.2 Service Communication Patterns
 
 **Synchronous Communication (REST API)**:
-- Order → Inventory (stock check)
+- Inventory → Catalog (product validation)
+- Order → Inventory (stock reservation)
+- Order → Catalog (product details)
 - Order → Payment (payment processing)
 - Order → Shipping (shipment creation)
 
@@ -80,7 +76,11 @@ This integration repository provides:
 
 ### 2.3 Database Architecture
 Following the **database-per-service** pattern:
-- Each service maintains its own PostgreSQL database
+- Catalog Service: MySQL 8.4
+- Inventory Service: MySQL 8.0
+- Order Service: MySQL 8.0
+- Payment Service: PostgreSQL 14
+- Shipping Service: PostgreSQL 14
 - No direct database access between services
 - Data consistency via API contracts
 
@@ -101,10 +101,16 @@ All services communicate through a shared bridge network named `eci-network`.
 Services are configured with proper startup order:
 ```yaml
 depends_on:
-  - order-postgres
-  - inventory-service
-  - payment-service
-  - shipping-service
+  catalog-mysql:
+    condition: service_healthy
+  inventory-mysql:
+    condition: service_healthy
+  order-mysql:
+    condition: service_healthy
+  payment-postgres:
+    condition: service_healthy
+  shipping-postgres:
+    condition: service_healthy
 ```
 
 ### 3.3 Health Checks
@@ -198,13 +204,17 @@ docker-compose ps
 
 Expected output:
 ```
-NAME                STATUS              PORTS
-order-mysql         Up (healthy)        0.0.0.0:3307->3306/tcp
-order-service       Up (healthy)        0.0.0.0:8081->8000/tcp
-payment-postgres    Up (healthy)        0.0.0.0:5434->5432/tcp
-payment-service     Up (healthy)        0.0.0.0:8086->8006/tcp
-shipping-postgres   Up (healthy)        0.0.0.0:5433->5432/tcp
-shipping-service    Up (healthy)        0.0.0.0:8085->8005/tcp
+NAME                 STATUS              PORTS
+catalog-mysql        Up (healthy)        0.0.0.0:3306->3306/tcp
+catalog-service      Up (healthy)        0.0.0.0:8090->8080/tcp
+inventory-mysql      Up (healthy)        0.0.0.0:3308->3306/tcp
+inventory-service    Up (healthy)        0.0.0.0:8091->8081/tcp
+order-mysql          Up (healthy)        0.0.0.0:3307->3306/tcp
+order-service        Up (healthy)        0.0.0.0:8082->8000/tcp
+payment-postgres     Up (healthy)        0.0.0.0:5434->5432/tcp
+payment-service      Up (healthy)        0.0.0.0:8086->8006/tcp
+shipping-postgres    Up (healthy)        0.0.0.0:5433->5432/tcp
+shipping-service     Up (healthy)        0.0.0.0:8085->8005/tcp
 ```
 
 ### 2.3 Verify Health
@@ -216,7 +226,7 @@ shipping-service    Up (healthy)        0.0.0.0:8085->8005/tcp
 ### 2.4 Run End-to-End Test
 ```powershell
 # Test complete order-to-delivery workflow
-.\tests\test-e2e-3-services.ps1
+.\test-5-services-e2e.ps1
 ```
 
 ---
@@ -229,25 +239,20 @@ We have provided automated E2E test scripts that demonstrate the complete order 
 
 **PowerShell (Windows)**:
 ```powershell
-.\tests\test-e2e-workflow.ps1
-```
-
-**Bash (Linux/Mac)**:
-```bash
-./tests/test-e2e-workflow.sh
+.\test-5-services-e2e.ps1
 ```
 
 ### 5.2 Test Workflow Steps
 
 The E2E test validates the following workflow:
 
-1. **User Registration** (User Service)
-   - POST `/v1/users/register`
-   - Creates new user account
-
-2. **Product Browsing** (Product Service)
+1. **Product Browsing** (Catalog Service)
    - GET `/v1/products`
    - Lists available products
+
+2. **Inventory Check** (Inventory Service)
+   - GET `/v1/inventory/{product_id}`
+   - Verifies stock availability
 
 3. **Order Creation** (Order Service)
    - POST `/v1/orders`
@@ -276,13 +281,13 @@ The E2E test validates the following workflow:
 ### 5.3 Expected Test Results
 
 ```
-✅ User created successfully
-✅ Products retrieved successfully
+✅ Catalog Service: Products retrieved successfully
+✅ Inventory Service: Stock verified successfully
 ✅ Order created (ID: 1)
 ✅ Payment processed (ID: 1, Amount: ₹2499.99)
 ✅ Shipment created (Tracking: TRK894044)
 ✅ Order status updated to 'Confirmed'
-✅ All services communicated successfully
+✅ All 5 services communicated successfully
 ✅ Idempotency working correctly
 ```
 
@@ -346,24 +351,22 @@ kubectl port-forward -n eci-platform svc/shipping-service 8085:8000
 
 ### 7.1 Health Endpoints
 All services expose health endpoints:
-- Order: http://localhost:8081/health
-- Product: http://localhost:8082/health
-- Inventory: http://localhost:8083/health
-- User: http://localhost:8084/health
-- Shipping: http://localhost:8085/health
+- Catalog: http://localhost:8090/health
+- Inventory: http://localhost:8091/health (external port for inventory)
+- Order: http://localhost:8082/health
 - Payment: http://localhost:8086/health
+- Shipping: http://localhost:8085/health
 
 ### 7.2 Metrics Endpoints
 Prometheus-compatible metrics available at `/metrics` for each service.
 
 ### 7.3 API Documentation
 Swagger UI available for each service:
-- Order: http://localhost:8081/docs
-- Product: http://localhost:8082/docs
-- Inventory: http://localhost:8083/docs
-- User: http://localhost:8084/docs
-- Shipping: http://localhost:8085/docs
+- Catalog: http://localhost:8090/docs (if supported)
+- Inventory: http://localhost:8091/docs (if supported)
+- Order: http://localhost:8082/docs
 - Payment: http://localhost:8086/docs
+- Shipping: http://localhost:8085/docs
 
 ---
 
@@ -372,8 +375,8 @@ Swagger UI available for each service:
 ### 8.1 Integration Requirements Met
 
 ✅ **Microservices Architecture** (4 marks)
-- 6 independent services with clear boundaries
-- Database-per-service pattern
+- 5 independent services with clear boundaries
+- Database-per-service pattern (3 MySQL, 2 PostgreSQL)
 - RESTful API communication
 
 ✅ **Inter-Service Communication** (4 marks)
@@ -525,7 +528,7 @@ Based on course learnings, potential improvements:
 2. Ensure Docker is running
 3. Run: `docker-compose up -d`
 4. Run: `.\scripts\health-check-all.ps1` (verify all services are healthy)
-5. Run: `.\tests\test-e2e-workflow.ps1` (see complete workflow in action)
-6. View API docs: http://localhost:8081/docs (and ports 8082-8086)
+5. Run: `.\test-5-services-e2e.ps1` (see complete workflow in action)
+6. View API docs: http://localhost:8082/docs (Order), http://localhost:8086/docs (Payment), http://localhost:8085/docs (Shipping)
 
-**Expected Result**: All 6 services start successfully, E2E test completes without errors, demonstrating complete order-to-delivery workflow.
+**Expected Result**: All 5 services start successfully, E2E test completes without errors, demonstrating complete catalog-to-delivery workflow.
