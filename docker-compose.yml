@@ -29,7 +29,7 @@ services:
       MYSQL_DATABASE: catalog_db
     volumes:
       - catalog-mysql-data:/var/lib/mysql
-      - ./eci-catalog-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./catalog-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:
@@ -78,7 +78,7 @@ services:
       MYSQL_DATABASE: inventory_db
     volumes:
       - inventory-mysql-data:/var/lib/mysql
-      - ./eci-inventory-service/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./inventory-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:
@@ -189,7 +189,7 @@ services:
       POSTGRES_DB: payment_db
     volumes:
       - payment-postgres-data:/var/lib/postgresql/data
-      - ./eci-payment-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./payment-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:
@@ -241,7 +241,7 @@ services:
       POSTGRES_DB: shipping_db
     volumes:
       - shipping-postgres-data:/var/lib/postgresql/data
-      - ./eci-shipping-service/db/init_with_seed.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./shipping-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eci-network
     healthcheck:

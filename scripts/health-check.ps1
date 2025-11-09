@@ -19,7 +19,7 @@ foreach ($service in $services) {
         $response = Invoke-RestMethod -Uri $service.URL -TimeoutSec 5
         
         if ($response.status -eq "ok" -or $response.status -eq "healthy") {
-            Write-Host " ✅ HEALTHY" -ForegroundColor Green
+            Write-Host " [HEALTHY]" -ForegroundColor Green
             Write-Host "  Port: $($service.Port)" -ForegroundColor Gray
         }
         else {
@@ -28,7 +28,7 @@ foreach ($service in $services) {
         }
     }
     catch {
-        Write-Host " ❌ UNAVAILABLE" -ForegroundColor Red
+        Write-Host " [UNAVAILABLE]" -ForegroundColor Red
         Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Gray
         $allHealthy = $false
     }
@@ -37,7 +37,7 @@ foreach ($service in $services) {
 
 Write-Host "========================================" -ForegroundColor Cyan
 if ($allHealthy) {
-    Write-Host "  ALL SERVICES HEALTHY ✅" -ForegroundColor Green
+    Write-Host "  ALL SERVICES HEALTHY" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "You can access the services at:" -ForegroundColor White

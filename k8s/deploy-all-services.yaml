@@ -1,0 +1,701 @@
+# ========================================
+# Complete ECI Platform K8s Deployment
+# Deploys: Catalog, Inventory, Order, Payment, Shipping
+# ========================================
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eci
+  labels:
+    name: eci
+    environment: development
+
+---
+# ========================================
+# 1. CATALOG SERVICE + MySQL
+# ========================================
+
+# Catalog MySQL Init ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-mysql-init
+  namespace: eci
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS catalog_db;
+    USE catalog_db;
+    CREATE TABLE IF NOT EXISTS products (
+        product_id VARCHAR(36) PRIMARY KEY,
+        sku VARCHAR(100) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        category VARCHAR(100),
+        price DECIMAL(10,2) NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        deleted BOOLEAN DEFAULT false
+    );
+
+---
+# Catalog MySQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: catalog-mysql-pvc
+  namespace: eci
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Catalog MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-mysql
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-mysql
+  template:
+    metadata:
+      labels:
+        app: catalog-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.4
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpassword"
+        - name: MYSQL_DATABASE
+          value: "catalog_db"
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: catalog-mysql-pvc
+      - name: mysql-init
+        configMap:
+          name: catalog-mysql-init
+
+---
+# Catalog MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-mysql
+  namespace: eci
+spec:
+  clusterIP: None
+  selector:
+    app: catalog-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+# Catalog Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+    spec:
+      containers:
+      - name: catalog
+        image: eci-microservices-catalog-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          value: "catalog-mysql"
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "catalog_db"
+        - name: DB_USER
+          value: "root"
+        - name: DB_PASSWORD
+          value: "rootpassword"
+
+---
+# Catalog Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: eci
+spec:
+  type: NodePort
+  selector:
+    app: catalog-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30090
+
+---
+# ========================================
+# 2. INVENTORY SERVICE + MySQL
+# ========================================
+
+# Inventory MySQL Init ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-mysql-init
+  namespace: eci
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS inventory_db;
+    USE inventory_db;
+    
+    CREATE TABLE IF NOT EXISTS inventory (
+        inventory_id VARCHAR(36) PRIMARY KEY,
+        sku VARCHAR(100) NOT NULL,
+        warehouse VARCHAR(100) NOT NULL,
+        on_hand INTEGER DEFAULT 0,
+        reserved INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_sku_warehouse (sku, warehouse),
+        INDEX idx_sku_warehouse (sku, warehouse),
+        INDEX idx_warehouse (warehouse)
+    );
+    
+    CREATE TABLE IF NOT EXISTS inventory_movements (
+        movement_id VARCHAR(36) PRIMARY KEY,
+        sku VARCHAR(100) NOT NULL,
+        warehouse VARCHAR(100) NOT NULL,
+        movement_type VARCHAR(20) NOT NULL,
+        quantity INTEGER NOT NULL,
+        reference_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_sku_movements (sku),
+        INDEX idx_warehouse_movements (warehouse),
+        INDEX idx_reference (reference_id),
+        INDEX idx_created_at (created_at)
+    );
+    
+    CREATE TABLE IF NOT EXISTS reservations (
+        reservation_id VARCHAR(36) PRIMARY KEY,
+        sku VARCHAR(100) NOT NULL,
+        warehouse VARCHAR(100) NOT NULL,
+        quantity INTEGER NOT NULL,
+        order_id VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_expires_at (expires_at),
+        INDEX idx_order_id (order_id),
+        INDEX idx_sku_warehouse_res (sku, warehouse)
+    );
+
+---
+# Inventory MySQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inventory-mysql-pvc
+  namespace: eci
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Inventory MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-mysql
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-mysql
+  template:
+    metadata:
+      labels:
+        app: inventory-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpassword"
+        - name: MYSQL_DATABASE
+          value: "inventory_db"
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: mysql-init
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: inventory-mysql-pvc
+      - name: mysql-init
+        configMap:
+          name: inventory-mysql-init
+
+---
+# Inventory MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-mysql
+  namespace: eci
+spec:
+  clusterIP: None
+  selector:
+    app: inventory-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+# Inventory Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      containers:
+      - name: inventory
+        image: eci-microservices-inventory-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+        env:
+        - name: PORT
+          value: "8081"
+        - name: DB_HOST
+          value: "inventory-mysql"
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "inventory_db"
+        - name: DB_USER
+          value: "root"
+        - name: DB_PASSWORD
+          value: "rootpassword"
+        - name: CATALOG_SERVICE_URL
+          value: "http://catalog-service:8080"
+
+---
+# Inventory Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: eci
+spec:
+  type: NodePort
+  selector:
+    app: inventory-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: 30091
+
+---
+# ========================================
+# 3. ORDER SERVICE + MySQL
+# ========================================
+
+# Order MySQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: order-mysql-pvc
+  namespace: eci
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Order MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-mysql
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-mysql
+  template:
+    metadata:
+      labels:
+        app: order-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpassword"
+        - name: MYSQL_DATABASE
+          value: "order_db"
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: order-mysql-pvc
+
+---
+# Order MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-mysql
+  namespace: eci
+spec:
+  clusterIP: None
+  selector:
+    app: order-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+# Order Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order
+        image: eci-microservices-order-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SERVICE_PORT
+          value: "8000"
+        - name: MYSQL_HOST
+          value: "order-mysql"
+        - name: MYSQL_PORT
+          value: "3306"
+        - name: MYSQL_USER
+          value: "root"
+        - name: MYSQL_PASSWORD
+          value: "rootpassword"
+        - name: MYSQL_DATABASE
+          value: "order_db"
+        - name: CATALOG_SERVICE_URL
+          value: "http://catalog-service:8080"
+        - name: INVENTORY_URL
+          value: "http://inventory-service:8081"
+        - name: PAYMENT_URL
+          value: "http://payment-service:8006"
+        - name: CATALOG_URL
+          value: "http://catalog-service:8080"
+
+---
+# Order Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: eci
+spec:
+  type: NodePort
+  selector:
+    app: order-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30082
+
+---
+# ========================================
+# 4. PAYMENT SERVICE + PostgreSQL
+# ========================================
+
+# Payment PostgreSQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: payment-postgres-pvc
+  namespace: eci
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Payment PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-postgres
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-postgres
+  template:
+    metadata:
+      labels:
+        app: payment-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "payment_db"
+        - name: POSTGRES_USER
+          value: "payment_user"
+        - name: POSTGRES_PASSWORD
+          value: "payment_pass"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: payment-postgres-pvc
+
+---
+# Payment PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-postgres
+  namespace: eci
+spec:
+  clusterIP: None
+  selector:
+    app: payment-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# Payment Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment
+        image: eci-microservices-payment-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8006
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://payment_user:payment_pass@payment-postgres:5432/payment_db"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:8000"
+        - name: INVENTORY_SERVICE_URL
+          value: "http://inventory-service:8081"
+
+---
+# Payment Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: eci
+spec:
+  type: NodePort
+  selector:
+    app: payment-service
+  ports:
+  - port: 8006
+    targetPort: 8006
+    nodePort: 30086
+
+---
+# ========================================
+# 5. SHIPPING SERVICE + PostgreSQL
+# ========================================
+
+# Shipping PostgreSQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shipping-postgres-pvc
+  namespace: eci
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Shipping PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-postgres
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping-postgres
+  template:
+    metadata:
+      labels:
+        app: shipping-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "shipping_db"
+        - name: POSTGRES_USER
+          value: "shipping_user"
+        - name: POSTGRES_PASSWORD
+          value: "shipping_pass"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: shipping-postgres-pvc
+
+---
+# Shipping PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-postgres
+  namespace: eci
+spec:
+  clusterIP: None
+  selector:
+    app: shipping-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+
+---
+# Shipping Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-service
+  namespace: eci
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping-service
+  template:
+    metadata:
+      labels:
+        app: shipping-service
+    spec:
+      containers:
+      - name: shipping
+        image: eci-microservices-shipping-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8005
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://shipping_user:shipping_pass@shipping-postgres:5432/shipping_db"
+        - name: ORDER_SERVICE_URL
+          value: "http://order-service:8000"
+
+---
+# Shipping Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-service
+  namespace: eci
+spec:
+  type: NodePort
+  selector:
+    app: shipping-service
+  ports:
+  - port: 8005
+    targetPort: 8005
+    nodePort: 30085

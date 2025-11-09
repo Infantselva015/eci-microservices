@@ -24,14 +24,14 @@ foreach ($service in $services) {
         $response = Invoke-WebRequest -Uri $service.URL -Method Get -TimeoutSec 5 -UseBasicParsing
         
         if ($response.StatusCode -eq 200) {
-            Write-Host "✅ HEALTHY" -ForegroundColor Green
+            Write-Host "[HEALTHY]" -ForegroundColor Green
             $healthyCount++
         } else {
-            Write-Host "⚠️  DEGRADED (Status: $($response.StatusCode))" -ForegroundColor Yellow
+            Write-Host "[DEGRADED] (Status: $($response.StatusCode))" -ForegroundColor Yellow
             $unhealthyCount++
         }
     } catch {
-        Write-Host "❌ UNHEALTHY" -ForegroundColor Red
+        Write-Host "[UNHEALTHY]" -ForegroundColor Red
         Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Gray
         $unhealthyCount++
     }
@@ -46,9 +46,9 @@ Write-Host "══════════════════════�
 Write-Host ""
 
 if ($unhealthyCount -eq 0) {
-    Write-Host "🎉 All services are healthy and ready!" -ForegroundColor Green
+    Write-Host "[SUCCESS] All services are healthy and ready!" -ForegroundColor Green
     exit 0
 } else {
-    Write-Host "⚠️  Some services are not healthy. Please check the logs." -ForegroundColor Yellow
+    Write-Host "[WARNING] Some services are not healthy. Please check the logs." -ForegroundColor Yellow
     exit 1
 }
