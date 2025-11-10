@@ -728,7 +728,6 @@ For issues or questions:
 | Tonpe Neha Rajendra | 2024tm93567@wilp.bits-pilani.ac.in | Notification Service |
 
 - **Program**: BITS WILP - Scalable Services
-- **Semester**: 2
 
 ## Acknowledgments
 
