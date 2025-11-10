@@ -14,32 +14,42 @@ This project demonstrates a production-ready microservices architecture with 5 i
    - Product catalog management
    - Category organization
    - Product search and filtering
-   - Port: 8080 (Local: 9090)
+   - Container Port: 8080
+   - NodePort: 30090
+   - Port-Forward: 9090
 
 2. **Inventory Service** (Node.js + MySQL 8.0)
    - Multi-warehouse inventory tracking
    - Stock level monitoring
    - Low stock alerts
-   - Port: 8081 (Local: 9091)
+   - Container Port: 8081
+   - NodePort: 30091
+   - Port-Forward: 9091
 
 3. **Order Service** (Python FastAPI + MySQL 8.0)
    - Order creation and management
    - Order status tracking
    - Customer order history
-   - Port: 8000 (Local: 9082)
+   - Container Port: 8000
+   - NodePort: 30082
+   - Port-Forward: 9082
 
 4. **Payment Service** (Python FastAPI + PostgreSQL 14)
    - Payment processing
    - Transaction management
    - Refund handling
    - Idempotency support
-   - Port: 8006 (Local: 9086)
+   - Container Port: 8006
+   - NodePort: 30086
+   - Port-Forward: 9086
 
 5. **Shipping Service** (Python FastAPI + PostgreSQL 14)
    - Shipment creation and tracking
    - Carrier integration
    - Delivery status updates
-   - Port: 8005 (Local: 9085)
+   - Container Port: 8005
+   - NodePort: 30085
+   - Port-Forward: 9085
 
 ### Technology Stack
 
@@ -314,13 +324,18 @@ Final Result:
 
 ## Technology Stack per Service
 
-| Service | Framework | Database | Port | Key Features |
-|---------|-----------|----------|------|--------------|
-| **Catalog** | Node.js (Express) | MySQL 8.4 | 8080 | Product management, Categories |
-| **Inventory** | Node.js (Express) | MySQL 8.0 | 8081 | Multi-warehouse, Stock alerts |
-| **Order** | Python (FastAPI) | MySQL 8.0 | 8000 | Order processing, History |
-| **Payment** | Python (FastAPI) | PostgreSQL 14 | 8006 | Idempotency, Transactions |
-| **Shipping** | Python (FastAPI) | PostgreSQL 14 | 8005 | Tracking, Status updates |
+| Service | Framework | Database | Container Port | NodePort | Port-Forward | Key Features |
+|---------|-----------|----------|----------------|----------|--------------|--------------|
+| **Catalog** | Node.js (Express) | MySQL 8.4 | 8080 | 30090 | 9090 | Product management, Categories |
+| **Inventory** | Node.js (Express) | MySQL 8.0 | 8081 | 30091 | 9091 | Multi-warehouse, Stock alerts |
+| **Order** | Python (FastAPI) | MySQL 8.0 | 8000 | 30082 | 9082 | Order processing, History |
+| **Payment** | Python (FastAPI) | PostgreSQL 14 | 8006 | 30086 | 9086 | Idempotency, Transactions |
+| **Shipping** | Python (FastAPI) | PostgreSQL 14 | 8005 | 30085 | 9085 | Tracking, Status updates |
+
+**Port Types Explained:**
+- **Container Port**: Internal port inside the Docker container
+- **NodePort**: Kubernetes-exposed port accessible via Minikube IP (range: 30000-32767)
+- **Port-Forward**: Local development port when using `kubectl port-forward`
 
 ## Quick Start
 
@@ -448,6 +463,24 @@ kubectl port-forward -n eci svc/order-service 9082:8000
 kubectl port-forward -n eci svc/payment-service 9086:8006
 kubectl port-forward -n eci svc/shipping-service 9085:8005
 ```
+
+### Complete Port Reference
+
+| Service | Container Port | Kubernetes NodePort | Port-Forward | Access Method |
+|---------|----------------|---------------------|--------------|---------------|
+| **Catalog** | 8080 | 30090 | 9090 | `http://localhost:30090` or port-forward to 9090 |
+| **Inventory** | 8081 | 30091 | 9091 | `http://localhost:30091` or port-forward to 9091 |
+| **Order** | 8000 | 30082 | 9082 | `http://localhost:30082` or port-forward to 9082 |
+| **Payment** | 8006 | 30086 | 9086 | `http://localhost:30086` or port-forward to 9086 |
+| **Shipping** | 8005 | 30085 | 9085 | `http://localhost:30085` or port-forward to 9085 |
+
+**Access Methods:**
+1. **Direct NodePort Access**: Use `http://localhost:NODEPORT` (recommended for Minikube)
+   - Example: `http://localhost:30090/api/products`
+2. **Port-Forward Access**: Use `kubectl port-forward` then access via localhost:PORT-FORWARD
+   - Example: `kubectl port-forward -n eci svc/catalog-service 9090:8080`, then `http://localhost:9090/api/products`
+3. **Internal (K8s)**: Services communicate using `http://SERVICE-NAME:CONTAINER-PORT`
+   - Example: `http://catalog-service:8080/api/products`
 
 ## Testing
 
