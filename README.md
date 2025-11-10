@@ -53,40 +53,274 @@ This project demonstrates a production-ready microservices architecture with 5 i
 ## Project Structure
 
 ```
-eci-microservices/
-├── docs/
-│   └── DEPLOYMENT.md              # Detailed deployment guide
-├── k8s/
-│   ├── namespace.yaml             # Kubernetes namespace definition
-│   └── deploy-all-services.yaml  # Complete K8s deployment manifest (702 lines)
-├── scripts/
-│   ├── cleanup-all.ps1            # Complete cleanup script
-│   ├── deploy-complete.ps1        # Master deployment automation
-│   ├── health-check-all.ps1      # Health check for all services
-│   ├── health-check.ps1           # Individual service health check
-│   ├── seed-300-products.ps1      # Product data seeding script
-│   ├── seed-300-products.sql      # Product seed data (300 products)
-│   ├── seed-inventory.ps1         # Inventory data seeding script
-│   ├── seed-inventory.sql         # Inventory seed data (66 records)
-│   ├── test-all-services-k8s.ps1 # E2E test suite (11 tests)
-│   ├── test-order-workflow-k8s.ps1# Order workflow testing
-│   ├── test-place-order.ps1       # Sample order placement
-│   └── README.md                  # Scripts documentation
-├── docker-compose.yml             # Docker Compose configuration
-├── K8S_DASHBOARD_GUIDE.md         # Kubernetes Dashboard usage guide
-├── VIDEO_DEMO_GUIDE.md            # Video demonstration script
-└── README.md                      # This file
+Final_Submission/
+├── eci-microservices/                    # Main orchestration repository
+│   ├── docs/
+│   │   ├── K8S_QUICK_START.md           # Quick start guide
+│   │   ├── KUBERNETES_DEPLOYMENT.md     # Detailed K8s guide
+│   │   └── MANUAL_TESTING_GUIDE.md      # Testing documentation
+│   ├── k8s/
+│   │   ├── namespace.yaml               # Kubernetes namespace (eci)
+│   │   └── deploy-all-services.yaml     # Complete deployment manifest (702 lines)
+│   ├── scripts/
+│   │   ├── cleanup-all.ps1              # Complete cleanup script
+│   │   ├── deploy-complete.ps1          # Master deployment automation
+│   │   ├── health-check-all.ps1         # Health check for all services
+│   │   ├── health-check.ps1             # Individual service health check
+│   │   ├── seed-300-products.ps1        # Product data seeding script
+│   │   ├── seed-300-products.sql        # Product seed data (300 products)
+│   │   ├── seed-inventory.ps1           # Inventory data seeding script
+│   │   ├── seed-inventory.sql           # Inventory seed data (66 records)
+│   │   ├── test-all-services-k8s.ps1    # E2E test suite (11 tests)
+│   │   ├── test-order-workflow-k8s.ps1  # Order workflow testing
+│   │   ├── test-place-order.ps1         # Sample order placement
+│   │   └── README.md                    # Scripts documentation
+│   ├── docker-compose.yml               # Docker Compose configuration
+│   └── README.md                        # This file
+│
+├── eci-catalog-service/                 # Catalog Microservice
+│   ├── config/
+│   │   └── database.js                  # MySQL connection config
+│   ├── controllers/
+│   │   ├── categoryController.js        # Category API handlers
+│   │   └── productController.js         # Product API handlers
+│   ├── dao/
+│   │   ├── categoryDao.js               # Category data access
+│   │   └── productDao.js                # Product data access
+│   ├── routes/
+│   │   ├── categoryRoutes.js            # Category endpoints
+│   │   ├── healthRoutes.js              # Health check endpoint
+│   │   └── productRoutes.js             # Product endpoints
+│   ├── seeders/
+│   │   └── productSeeder.js             # Initial data seeding
+│   ├── utils/
+│   │   ├── logger.js                    # Winston logger
+│   │   └── validation.js                # Input validation
+│   ├── Dockerfile                       # Node.js 18 Alpine image
+│   ├── docker-compose.yml               # Local development setup
+│   ├── index.js                         # Application entry point
+│   ├── init.sql                         # Database initialization
+│   ├── package.json                     # Dependencies
+│   └── README.md                        # Service documentation
+│
+├── eci-inventory-service/               # Inventory Microservice
+│   ├── config/
+│   │   └── database.js                  # MySQL connection config
+│   ├── controllers/
+│   │   └── inventoryController.js       # Inventory API handlers
+│   ├── dao/
+│   │   └── inventoryDao.js              # Inventory data access
+│   ├── routes/
+│   │   ├── healthRoutes.js              # Health check endpoint
+│   │   └── inventoryRoutes.js           # Inventory endpoints
+│   ├── seeders/
+│   │   └── inventorySeeder.js           # Warehouse data seeding
+│   ├── services/
+│   │   └── alertService.js              # Low stock alerts
+│   ├── utils/
+│   │   ├── catalogService.js            # Catalog API client
+│   │   ├── eventPublisher.js            # Event publishing
+│   │   ├── logger.js                    # Winston logger
+│   │   ├── reaperJob.js                 # Cleanup jobs
+│   │   └── validation.js                # Input validation
+│   ├── Dockerfile                       # Node.js 18 Alpine image
+│   ├── docker-compose.yml               # Local development setup
+│   ├── index.js                         # Application entry point
+│   ├── init.sql                         # Database initialization
+│   ├── package.json                     # Dependencies
+│   └── README.md                        # Service documentation
+│
+├── eci-order-service/                   # Order Microservice
+│   ├── app/
+│   │   ├── __init__.py                  # Package initialization
+│   │   ├── api.py                       # FastAPI routes
+│   │   ├── config.py                    # Configuration management
+│   │   ├── crud.py                      # Database operations
+│   │   ├── db.py                        # Database connection
+│   │   ├── main.py                      # Application entry point
+│   │   ├── models.py                    # SQLAlchemy models
+│   │   ├── schemas.py                   # Pydantic schemas
+│   │   ├── seeds.py                     # Data seeding
+│   │   └── utils.py                     # Utility functions
+│   ├── tests/
+│   │   └── test_order_flow.py           # Integration tests
+│   ├── Dockerfile                       # Python 3.11 slim image
+│   ├── docker-compose.yml               # Local development setup
+│   ├── requirements.txt                 # Python dependencies
+│   └── README.md                        # Service documentation
+│
+├── eci-payment-service/                 # Payment Microservice
+│   ├── db/
+│   │   ├── init.sql                     # Database schema
+│   │   └── init_with_seed.sql           # Schema + seed data
+│   ├── k8s/
+│   │   ├── configmap.yaml               # Application config
+│   │   ├── db-configmap.yaml            # Database init SQL
+│   │   ├── deployment.yaml              # Service deployment
+│   │   ├── pvc.yaml                     # Persistent storage
+│   │   ├── secret.yaml                  # Sensitive data
+│   │   └── service.yaml                 # Service exposure
+│   ├── sample_requests/
+│   │   ├── charge_payment.json          # Payment charge request
+│   │   ├── charge_payment_idempotent.ps1# Idempotent test script
+│   │   ├── charge_payment_idempotent.sh # Idempotent test script
+│   │   ├── check_payment.json           # Payment check request
+│   │   ├── create_payment.json          # Payment creation request
+│   │   ├── refund_payment.json          # Refund request
+│   │   └── update_status.json           # Status update request
+│   ├── tests/
+│   │   └── test_integration.py          # Integration tests
+│   ├── Dockerfile                       # Python 3.11 slim (multi-stage)
+│   ├── docker-compose.yml               # Local development setup
+│   ├── main.py                          # FastAPI application
+│   ├── requirements.txt                 # Python dependencies
+│   └── README.md                        # Service documentation
+│
+└── eci-shipping-service/                # Shipping Microservice
+    ├── db/
+    │   ├── init.sql                     # Database schema
+    │   └── init_with_seed.sql           # Schema + seed data
+    ├── k8s/
+    │   ├── configmap.yaml               # Application config
+    │   ├── db-configmap.yaml            # Database init SQL
+    │   ├── deployment.yaml              # Service deployment
+    │   ├── pvc.yaml                     # Persistent storage
+    │   ├── secret.yaml                  # Sensitive data
+    │   └── service.yaml                 # Service exposure
+    ├── sample_requests/
+    │   ├── cancel_shipment.json         # Shipment cancellation
+    │   ├── create_shipment.json         # Shipment creation
+    │   ├── track_shipment.json          # Tracking request
+    │   └── update_status.json           # Status update
+    ├── tests/
+    │   └── test_integration.py          # Integration tests
+    ├── Dockerfile                       # Python 3.11 slim
+    ├── docker-compose.yml               # Local development setup
+    ├── main.py                          # FastAPI application
+    ├── requirements.txt                 # Python dependencies
+    └── README.md                        # Service documentation
 ```
 
-### Individual Service Repositories
+## Service Interaction Flow
 
-Each microservice maintains its own repository with complete source code:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CLIENT / USER                               │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    1. BROWSE PRODUCTS                                │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │  Catalog Service (Node.js + MySQL)                       │       │
+│  │  - GET /api/products (list all products)                 │       │
+│  │  - GET /api/products/:id (get product details)           │       │
+│  │  - GET /api/categories (list categories)                 │       │
+│  └──────────────────────────────────────────────────────────┘       │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   2. CHECK AVAILABILITY                              │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │  Inventory Service (Node.js + MySQL)                     │       │
+│  │  - GET /api/inventory/:productId (check stock)           │       │
+│  │  - GET /api/warehouses (list warehouses)                 │       │
+│  │  - Validates product via Catalog Service API             │       │
+│  └──────────────────────────────────────────────────────────┘       │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    3. CREATE ORDER                                   │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │  Order Service (Python FastAPI + MySQL)                  │       │
+│  │  - POST /orders (create order)                           │       │
+│  │  - GET /orders/:id (get order details)                   │       │
+│  │  - Returns order_id for downstream services              │       │
+│  └──────────────────────────────────────────────────────────┘       │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                  4. PROCESS PAYMENT                                  │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │  Payment Service (Python FastAPI + PostgreSQL)           │       │
+│  │  - POST /payments (create payment record)                │       │
+│  │  - POST /payments/:id/charge (charge payment)            │       │
+│  │  - Idempotent payment processing                         │       │
+│  │  - Returns payment_id and authorization_code             │       │
+│  └──────────────────────────────────────────────────────────┘       │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                  5. CREATE SHIPMENT                                  │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │  Shipping Service (Python FastAPI + PostgreSQL)          │       │
+│  │  - POST /shipments (create shipment)                     │       │
+│  │  - GET /shipments/:id (track shipment)                   │       │
+│  │  - PUT /shipments/:id/status (update status)             │       │
+│  │  - Returns shipment_id and tracking_number               │       │
+│  └──────────────────────────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────────────┘
 
-- **eci-catalog-service/** - Product catalog microservice
-- **eci-inventory-service/** - Inventory management microservice  
-- **eci-order-service/** - Order processing microservice
-- **eci-payment-service/** - Payment processing microservice
-- **eci-shipping-service/** - Shipping logistics microservice
+                            ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   ORDER COMPLETE                                     │
+│  - Order ID: 1                                                       │
+│  - Payment ID: UUID                                                  │
+│  - Shipment ID: UUID                                                 │
+│  - Status: Processing → Paid → Shipped → Delivered                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow Example
+
+```
+User Request: "Place order for Product #1"
+
+Step 1: Check Product (Catalog Service)
+  GET http://catalog-service:8080/api/products/1
+  Response: { id: 1, name: "Laptop", price: 999.99, sku: "ELEC-001" }
+
+Step 2: Check Stock (Inventory Service)
+  GET http://inventory-service:8081/api/inventory/1
+  Response: { product_id: 1, warehouse_id: 1, quantity: 150, available: true }
+
+Step 3: Create Order (Order Service)
+  POST http://order-service:8000/orders
+  Body: { customer_name: "John", product_id: 1, quantity: 1, price: 999.99 }
+  Response: { order_id: 1, total_amount: 999.99, status: "pending" }
+
+Step 4: Process Payment (Payment Service)
+  POST http://payment-service:8006/payments
+  Body: { order_id: 1, amount: 999.99, payment_method: "credit_card" }
+  Response: { payment_id: "uuid-123", status: "authorized" }
+
+  POST http://payment-service:8006/payments/uuid-123/charge
+  Response: { status: "charged", authorization_code: "AUTH-456789" }
+
+Step 5: Create Shipment (Shipping Service)
+  POST http://shipping-service:8005/shipments
+  Body: { order_id: 1, address: "123 Main St", carrier: "FedEx" }
+  Response: { shipment_id: "uuid-789", tracking_number: "TRACK-123456" }
+
+Final Result:
+  ✅ Order placed successfully
+  ✅ Payment processed: AUTH-456789
+  ✅ Shipment created: TRACK-123456
+```
+
+## Technology Stack per Service
+
+| Service | Framework | Database | Port | Key Features |
+|---------|-----------|----------|------|--------------|
+| **Catalog** | Node.js (Express) | MySQL 8.4 | 8080 | Product management, Categories |
+| **Inventory** | Node.js (Express) | MySQL 8.0 | 8081 | Multi-warehouse, Stock alerts |
+| **Order** | Python (FastAPI) | MySQL 8.0 | 8000 | Order processing, History |
+| **Payment** | Python (FastAPI) | PostgreSQL 14 | 8006 | Idempotency, Transactions |
+| **Shipping** | Python (FastAPI) | PostgreSQL 14 | 8005 | Tracking, Status updates |
 
 ## Quick Start
 
