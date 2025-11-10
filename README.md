@@ -1,6 +1,6 @@
 # ECI Microservices Platform
 
-A comprehensive e-commerce microservices platform built with Node.js, Python FastAPI, MySQL, PostgreSQL, Docker, and Kubernetes.
+A comprehensive e-commerce microservices platform built with Node.js, Python FastAPI, MySQL, PostgreSQL, Docker,Kubernetes,Prometheus and Grafana.
 
 ## Project Overview
 
