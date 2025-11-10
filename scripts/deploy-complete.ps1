@@ -51,16 +51,29 @@ Write-Host ""
 
 # Load images to Minikube
 Write-Host "[STEP 2] Loading images to Minikube..." -ForegroundColor Yellow
-minikube image load eci-microservices-catalog-service:latest
-if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Failed to load catalog image" -ForegroundColor Red; exit 1 }
-minikube image load eci-microservices-inventory-service:latest
-if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Failed to load inventory image" -ForegroundColor Red; exit 1 }
-minikube image load eci-microservices-order-service:latest
-if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Failed to load order image" -ForegroundColor Red; exit 1 }
-minikube image load eci-microservices-payment-service:latest
-if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Failed to load payment image" -ForegroundColor Red; exit 1 }
-minikube image load eci-microservices-shipping-service:latest
-if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Failed to load shipping image" -ForegroundColor Red; exit 1 }
+Write-Host "  (This may take 30-60 seconds...)" -ForegroundColor Gray
+
+$images = @(
+    "eci-microservices-catalog-service:latest",
+    "eci-microservices-inventory-service:latest",
+    "eci-microservices-order-service:latest",
+    "eci-microservices-payment-service:latest",
+    "eci-microservices-shipping-service:latest"
+)
+
+foreach ($image in $images) {
+    Write-Host "  Loading $image..." -ForegroundColor Gray -NoNewline
+    $result = minikube image load $image 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host " OK" -ForegroundColor Green
+    } else {
+        Write-Host " FAILED" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to load $image" -ForegroundColor Red
+        Write-Host $result
+        exit 1
+    }
+}
+
 Write-Host "[SUCCESS] All images loaded to Minikube" -ForegroundColor Green
 Write-Host ""
 
@@ -138,31 +151,72 @@ Write-Host "Tests will verify all services are healthy and responding..." -Foreg
 
 $testResult = $LASTEXITCODE
 
+# Step 6: Deploy Monitoring Stack (Prometheus & Grafana)
+Write-Host "`n[PHASE 6] Deploying monitoring stack..." -ForegroundColor Cyan
+Write-Host "Installing Prometheus and Grafana for metrics visualization..." -ForegroundColor White
+
+kubectl apply -f "$baseDir/k8s/monitoring-stack.yaml"
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "[SUCCESS] Monitoring stack deployed" -ForegroundColor Green
+    Write-Host "  Prometheus: http://localhost:30900" -ForegroundColor White
+    Write-Host "  Grafana: http://localhost:30300 (admin/admin123)" -ForegroundColor White
+    
+    Write-Host "`nWaiting for monitoring services to start..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 15
+} else {
+    Write-Host "[WARNING] Monitoring stack deployment had issues" -ForegroundColor Yellow
+}
+
 Write-Host "`n========================================" -ForegroundColor Magenta
 Write-Host " DEPLOYMENT PIPELINE COMPLETE" -ForegroundColor Magenta
 Write-Host "========================================`n" -ForegroundColor Magenta
 
 if ($testResult -eq 0) {
     Write-Host "[SUCCESS] All phases completed successfully!" -ForegroundColor Green
-    Write-Host "`nYou can now:" -ForegroundColor Cyan
-    Write-Host "  1. Access services via port-forward" -ForegroundColor White
-    Write-Host "  2. Run individual service tests" -ForegroundColor White
-    Write-Host "  3. View logs: kubectl logs -n eci -l app=<service-name>" -ForegroundColor White
-    Write-Host "`nTo cleanup:" -ForegroundColor Cyan
-    Write-Host "  .\scripts\cleanup-all.ps1" -ForegroundColor Yellow
+    Write-Host "`nService Endpoints:" -ForegroundColor Cyan
+    Write-Host "  Catalog:   http://localhost:30090" -ForegroundColor White
+    Write-Host "  Inventory: http://localhost:30091" -ForegroundColor White
+    Write-Host "  Order:     http://localhost:30082" -ForegroundColor White
+    Write-Host "  Payment:   http://localhost:30086" -ForegroundColor White
+    Write-Host "  Shipping:  http://localhost:30085" -ForegroundColor White
+    Write-Host "`nMonitoring:" -ForegroundColor Cyan
+    Write-Host "  Prometheus:     http://localhost:30900" -ForegroundColor White
+    Write-Host "  Grafana:        http://localhost:30300 (admin/admin123)" -ForegroundColor White
+    Write-Host "  K8s Dashboard:  Opening in browser..." -ForegroundColor White
+    Write-Host "`nUseful Commands:" -ForegroundColor Cyan
+    Write-Host "  View logs:      kubectl logs -n eci -l app=SERVICE-NAME" -ForegroundColor White
+    Write-Host "  Port forward:   kubectl port-forward -n eci svc/SERVICE LOCAL:REMOTE" -ForegroundColor White
+    Write-Host "  Cleanup:        .\scripts\cleanup-all.ps1" -ForegroundColor White
     
-    # Launch Kubernetes Dashboard
+    # Launch Monitoring Dashboards
     Write-Host "`n========================================" -ForegroundColor Cyan
-    Write-Host "  Opening Kubernetes Dashboard" -ForegroundColor Cyan
+    Write-Host "  Opening Monitoring Dashboards" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "[INFO] Launching Kubernetes Dashboard in your browser..." -ForegroundColor Yellow
-    Write-Host "[INFO] Select namespace 'eci' to view all services" -ForegroundColor Yellow
-    Write-Host ""
     
-    Start-Process powershell -ArgumentList "-Command", "minikube dashboard" -WindowStyle Normal
+    # Open Prometheus using minikube service (creates tunnel automatically)
+    Write-Host "[INFO] Opening Prometheus in your browser..." -ForegroundColor Yellow
+    Write-Host "       Using: minikube service prometheus -n eci" -ForegroundColor Gray
+    Start-Sleep -Seconds 1
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "minikube service prometheus -n eci" -WindowStyle Normal
     
-    Write-Host "[SUCCESS] Dashboard launching... Check your browser!" -ForegroundColor Green
+    # Open Grafana using minikube service (creates tunnel automatically)
+    Write-Host "[INFO] Opening Grafana in your browser..." -ForegroundColor Yellow
+    Write-Host "       Using: minikube service grafana -n eci" -ForegroundColor Gray
+    Write-Host "       Login: admin / admin123" -ForegroundColor Gray
+    Start-Sleep -Seconds 1
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "minikube service grafana -n eci" -WindowStyle Normal
+    
+    # Launch Kubernetes Dashboard
+    Write-Host "[INFO] Launching Kubernetes Dashboard..." -ForegroundColor Yellow
+    Write-Host "       Select namespace 'eci' to view all services" -ForegroundColor Gray
+    Start-Sleep -Seconds 1
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "minikube dashboard" -WindowStyle Normal
+    
+    Write-Host "`n[SUCCESS] All dashboards launching in separate terminal windows!" -ForegroundColor Green
+    Write-Host "[INFO] Keep the terminal windows open to maintain access" -ForegroundColor Yellow
+    Write-Host "       (Closing them will stop the tunnels)" -ForegroundColor Gray
     Write-Host ""
 } else {
     Write-Host "[WARNING] Deployment completed with test failures" -ForegroundColor Yellow

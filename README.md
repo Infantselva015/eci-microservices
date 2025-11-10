@@ -58,7 +58,8 @@ This project demonstrates a production-ready microservices architecture with 5 i
 - **Containerization**: Docker
 - **Orchestration**: Kubernetes (Minikube)
 - **Service Communication**: REST APIs
-- **Monitoring**: Kubernetes Dashboard
+- **Monitoring**: Prometheus, Grafana, Kubernetes Dashboard
+- **Metrics**: Prometheus exporters in all services
 
 ## Project Structure
 
@@ -71,10 +72,12 @@ Final_Submission/
 │   │   └── MANUAL_TESTING_GUIDE.md      # Testing documentation
 │   ├── k8s/
 │   │   ├── namespace.yaml               # Kubernetes namespace (eci)
-│   │   └── deploy-all-services.yaml     # Complete deployment manifest (702 lines)
+│   │   ├── deploy-all-services.yaml     # Complete deployment manifest (702 lines)
+│   │   └── monitoring-stack.yaml        # Prometheus & Grafana deployment
 │   ├── scripts/
 │   │   ├── cleanup-all.ps1              # Complete cleanup script
-│   │   ├── deploy-complete.ps1          # Master deployment automation
+│   │   ├── deploy-complete.ps1          # Master deployment automation (includes monitoring)
+│   │   ├── deploy-monitoring.ps1        # Deploy monitoring stack separately
 │   │   ├── health-check-all.ps1         # Health check for all services
 │   │   ├── health-check.ps1             # Individual service health check
 │   │   ├── seed-300-products.ps1        # Product data seeding script
@@ -365,7 +368,8 @@ This automated script will:
 5. Seed 66 inventory records in 5 warehouses
 6. Place sample orders automatically
 7. Run 11 E2E tests to verify deployment
-8. Launch Kubernetes Dashboard
+8. Deploy Prometheus & Grafana monitoring
+9. Launch Kubernetes Dashboard
 
 **Deployment Time**: ~3-4 minutes
 
@@ -512,6 +516,67 @@ cd scripts
 ```
 
 ## Monitoring
+
+### Prometheus & Grafana
+
+The platform includes automated monitoring with Prometheus and Grafana, deployed automatically via `deploy-complete.ps1`.
+
+**Access URLs**:
+- **Prometheus**: http://localhost:30900
+  - Metrics collection and querying
+  - Target status: http://localhost:30900/targets
+  - Query interface: http://localhost:30900/graph
+  
+- **Grafana**: http://localhost:30300
+  - Username: `admin`
+  - Password: `admin123`
+  - Pre-configured dashboards: "ECI Microservices Overview"
+
+**Metrics Available**:
+- Service health status (`up` metric)
+- HTTP request rates (`http_requests_total`)
+- Response times (`http_request_duration_seconds`)
+- Error rates (5xx responses)
+- Service-specific metrics:
+  - Inventory stock levels
+  - Payment transaction counts
+  - Order processing times
+
+**Service Metrics Endpoints**:
+```powershell
+# Check metrics from each service
+curl http://localhost:30090/metrics  # Catalog
+curl http://localhost:30091/metrics  # Inventory
+curl http://localhost:30082/metrics  # Order
+curl http://localhost:30086/metrics  # Payment
+curl http://localhost:30085/metrics  # Shipping
+```
+
+**Deploy Monitoring Separately** (if already have services running):
+```powershell
+cd scripts
+.\deploy-monitoring.ps1
+```
+
+**Remove Monitoring**:
+```powershell
+kubectl delete -f k8s/monitoring-stack.yaml
+```
+
+**Sample Prometheus Queries**:
+```promql
+# Service health (1 = healthy, 0 = down)
+up{job=~".*-service"}
+
+# Request rate per service (requests/sec)
+rate(http_requests_total[5m])
+
+# 95th percentile response time
+histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+
+# Error rate (5xx responses)
+rate(http_requests_total{status=~"5.."}[5m])
+```
 
 ### Kubernetes Dashboard
 
