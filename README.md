@@ -484,7 +484,15 @@ For issues or questions:
 
 ## Authors
 
-- **Student ID**: [Your ID]
+### Team Members
+
+| Member | Mail-ID | Contribution |
+|--------|---------|--------------|
+| Anantya Mary J | 2024tm93571@wilp.bits-pilani.ac.in | Inventory & Catalog Services |
+| Anoosha R Kolagal | 2024tm93576@wilp.bits-pilani.ac.in | Order Service & Documentation |
+| Infantselva S | 2024tm93572@wilp.bits-pilani.ac.in | Payment & Shipping Services |
+| Tonpe Neha Rajendra | 2024tm93567@wilp.bits-pilani.ac.in | Notification Service |
+
 - **Program**: BITS WILP - Scalable Services
 - **Semester**: 2
 
